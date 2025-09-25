@@ -16,19 +16,16 @@ import numpy as np
 import torch
 from constants import CONV_TRS, RUNS, SUBS_STRANGERS, TR
 from himalaya.backend import set_backend
-from himalaya.kernel_ridge import ColumnKernelizer, Kernelizer, MultipleKernelRidgeCV
+from himalaya.kernel_ridge import (ColumnKernelizer, Kernelizer,
+                                   MultipleKernelRidgeCV)
 from himalaya.scoring import correlation_score_split
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import PredefinedSplit
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from util.path import Path
-from util.subject import (
-    get_bold,
-    get_conv,
-    get_timinglog_boxcars,
-    get_transcript_features,
-)
+from util.subject import (get_bold, get_conv, get_timinglog_boxcars,
+                          get_transcript_features)
 
 # from util.atlas import Atlas
 
@@ -331,9 +328,9 @@ def encoding(
 
     results = defaultdict(list)
     run_ids = np.repeat(RUNS, CONV_TRS * 2)
-    kfold = PredefinedSplit(run_ids)
+    # kfold = PredefinedSplit(run_ids)
     # train on just 2 runs and test on 3 (to compare with story):
-    # kfold = PredefinedSplit(np.array([-1] * 480 + [0] * (1200 - 480)))
+    kfold = PredefinedSplit(np.array([-1] * 480 + [0] * (1200 - 480)))
     for k, (train_index, test_index) in enumerate(kfold.split(X)):
         X_train, X_test = X[train_index], X[test_index]
         Y_train, Y_test = Y_bold[train_index], Y_bold[test_index]
@@ -388,12 +385,12 @@ def encoding(
             weights = enc_model.get_primal_coef(Xfit)
 
             weights_prod = weights[-2]
-            weights_prod_delay = weights_prod.reshape(-1, 4, weights_prod.shape[-1])
+            weights_prod_delay = weights_prod.reshape(-1, 6, weights_prod.shape[-1])
             weights_prod = weights_prod_delay.mean(1)
             # weights_prod = torch.linalg.vector_norm(weights_prod_delay, dim=0)
 
             weights_comp = weights[-1]
-            weights_comp_delay = weights_comp.reshape(-1, 4, weights_comp.shape[-1])
+            weights_comp_delay = weights_comp.reshape(-1, 6, weights_comp.shape[-1])
             weights_comp = weights_comp_delay.mean(1)
             # weights_comp = torch.linalg.vector_norm(weights_comp_delay, dim=0)
 
@@ -432,10 +429,12 @@ def main(subject: list[int], model: str, cache: str, suffix: str, cuda: int, **k
             for key, value in result.items():
                 f.create_dataset(name=key, data=value)
 
+    print(datetime.now())
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("-s", "--subject", nargs="+", type=int)
+    parser.add_argument("-s", "--subject", nargs="+", type=int, default=SUBS_STRANGERS)
     parser.add_argument("-m", "--model", type=str, default="joint_split")
     parser.add_argument(
         "-lm", "--lang-model", type=str, default="model-gpt2-2b_layer-24"
@@ -450,7 +449,7 @@ if __name__ == "__main__":
     _args = parser.parse_args()
     _args.alphas = np.logspace(0, 12, 13)
 
-    if task_id := os.environ.get("SLURM_ARRAY_TASK_ID"):
+    if task_id := os.environ.get("SLURM_ARRAY_TASK_ID") and not len(_args.subject):
         portion = int(task_id) - 1
         subject_chunks = np.array_split(np.array(SUBS_STRANGERS), 4)
         subject_subset = subject_chunks[portion]

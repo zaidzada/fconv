@@ -91,6 +91,11 @@ encoding_2fold:
 		code/slurm.sh -- \
     	code/encoding.py -m joint_split --lang-model model-gpt2-2b_layer-24 --cache default_task --save-preds --suffix _n2
 
+encoding_2fold_weights:
+	sbatch --job-name=enc2w --mem=16G --time=01:30:00 --gres=gpu:1 \
+		code/slurm.sh -- \
+    	code/encoding.py -m joint_nosplit --lang-model model-gpt2-2b_layer-24 --cache default_task --save-preds --suffix _n2w --save-weights
+
 encoding_black2conv:
 	sbatch --job-name=b2c --mem=6G --time=00:30:00 --gres=gpu:1 \
 		code/slurm.sh -- \
